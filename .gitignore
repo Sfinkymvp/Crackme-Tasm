@@ -1,2 +1,3 @@
-for_Wario/
-for_Sfinky/
+*.lst
+*.obj
+*.map
