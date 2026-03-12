@@ -1,1 +1,7 @@
 #pipi la pup
+
+*.lst
+*.obj
+*.map
+*.com.*
+wario/
