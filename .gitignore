@@ -1,2 +1,8 @@
 sfinky/
+*.obj
+*.map
+*.lst
+*.OBJ
+*.MAP
+*.LST
 *.com.*
