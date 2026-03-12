@@ -1,0 +1,168 @@
+Turbo Assembler	 Version 4.1	    12/03/26 11:33:14	    Page 1
+crack_me.asm
+
+
+
+      1				     ; 2 уязвимости:
+      2				     ; 1) нет проверки длины пароля (буфер на 16 символов)
+      3				     ;
+      4				     ; 2) т.к. данные лежат в стеке,	то можно	перезаписать    +
+      5				     адрес	возврата из функции парсинга пароля
+      6				     ;									     и	сразу	    +
+      7				     перейти к успеху
+      8				     ; должны перезаписать адрес	возврата, который лежит +
+      9				     в	[sp + 22]
+     10	0000			     .model tiny
+     11	0000			     .code
+     12				     org 100h
+     13
+     14	      =000D		     LF		 equ 0dh	  ; символ enter
+     15
+     16	0100			     start:
+     17	0100  BA 015Dr				 mov dx, offset	msg_prompt
+     18	0103  B4 09				 mov ah, 9
+     19	0105  CD 21				 int 21h
+     20
+     21	0107  E8 0016				 call check_password
+     22	010A  3C 00				 cmp al, 0
+     23	010C  74 06				 je denied
+     24
+     25	010E			     granted:
+     26	010E  BA 0178r				 mov dx, offset	msg_granted
+     27	0111  EB 04 90				 jmp exit
+     28
+     29	0114			     denied:
+     30	0114  BA 0187r				 mov dx, offset	msg_denied
+     31	0117			     exit:
+     32	0117  B4 09				 mov ah, 9
+     33	0119  CD 21				 int 21h
+     34	011B  B8 4C00				 mov ax, 4c00h
+     35	011E  CD 21				 int 21h
+     36
+     37
+     38				     ; ------stack visualization-----
+     39				     ; |			    |
+     40				     ; |	BP		SP  |
+     41				     ; |	||		||  |
+     42				     ; |  00 00	00 | 00	... 00|	00  |
+     43				     ; |  bk pt	BP |  buffer  |	fg  |
+     44				     ; |			    |
+     45				     ; ------------------------------
+     46
+     47	0120			     check_password proc
+     48	0120  55				 push bp
+     49	0121  8B EC				 mov bp, sp
+     50
+     51	0123  83 EC 12				 sub sp, 18d
+     52
+     53	0126  C7 46 FE 0000			 mov word ptr [bp - 2d], 0   ; is_ok = 0
+     54
+     55						 ; ввод пароля (уязвимость:	нет контроля	длины)
+     56	012B  8D 76 EE				 lea si, [bp - 18d]
+     57
+Turbo Assembler	 Version 4.1	    12/03/26 11:33:14	    Page 2
+crack_me.asm
+
+
+
+     58	012E  E8 0019				 call my_gets
+     59
+     60						 ; проверка пароля (сравнение с	"secret")
+     61	0131  BF 0195r				 mov di, offset	correct_pass
+     62	0134  B9 0006				 mov cx, 6
+     63						 ; сравниваем	[ES:DI]	и [DS:SI]
+     64	0137  F3> A6				 repe cmpsb
+     65
+     66	0139  83 F9 00				 cmp cx, 0
+     67	013C  75 05				 jne not_match
+     68
+     69	013E  C7 46 FE 0001			 mov word ptr [bp - 2d], 1   ; is_ok = 1
+     70
+     71	0143			     not_match:
+     72	0143  8A 46 FE				 mov al, byte ptr [bp -	2d]  ; возвращаем младший байт is_ok
+     73	0146  8B E5				 mov sp, bp
+     74	0148  5D				 pop bp
+     75
+     76	0149  C3				 ret
+     77	014A			     check_password endp
+     78
+     79
+     80	014A			     my_gets proc
+     81	014A  33 DB				 xor bx, bx
+     82
+     83	014C			     read_loop:
+     84	014C  B4 01				 mov ah, 01h
+     85	014E  CD 21				 int 21h
+     86
+     87	0150  3C 0D				 cmp al, LF
+     88	0152  74 05				 je  done_read
+     89
+     90	0154  88 00				 mov [si + bx],	al
+     91	0156  43				 inc bx
+     92	0157  EB F3				 jmp read_loop
+     93
+     94	0159			     done_read:
+     95	0159  C6 00 00				 mov byte ptr [si + bx], 0   ; завершающий ноль
+     96
+     97	015C  C3				 ret
+     98	015D			     my_gets endp
+     99
+    100
+    101	015D  45 6E 74 65 72 20	70+  msg_prompt	     db	'Enter password	(6 chars): $'
+    102	      61 73 73 77 6F 72	64+
+    103	      20 28 36 20 63 68	61+
+    104	      72 73 29 3A 20 24
+    105	0178  41 63 63 65 73 73	20+  msg_granted     db	'Access	granted$'
+    106	      67 72 61 6E 74 65	64+
+    107	      24
+    108	0187  41 63 63 65 73 73	20+  msg_denied	     db	'Access	denied$'
+    109	      64 65 6E 69 65 64	24
+    110
+    111	0195  73 65 63 72 65 74	     correct_pass    db	'secret'
+    112
+    113				     end start
+Turbo Assembler	 Version 4.1	    12/03/26 11:33:14	    Page 3
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "12/03/26"
+??FILENAME			  Text	 "crack_me"
+??TIME				  Text	 "11:33:14"
+??VERSION			  Number 040A
+@32BIT				  Text	 0
+@CODE				  Text	 DGROUP
+@CODESIZE			  Text	 0
+@CPU				  Text	 0101H
+@CURSEG				  Text	 _TEXT
+@DATA				  Text	 DGROUP
+@DATASIZE			  Text	 0
+@FILENAME			  Text	 CRACK_ME
+@INTERFACE			  Text	 000H
+@MODEL				  Text	 1
+@STACK				  Text	 DGROUP
+@WORDSIZE			  Text	 2
+CHECK_PASSWORD			  Near	 DGROUP:0120
+CORRECT_PASS			  Byte	 DGROUP:0195
+DENIED				  Near	 DGROUP:0114
+DONE_READ			  Near	 DGROUP:0159
+EXIT				  Near	 DGROUP:0117
+GRANTED				  Near	 DGROUP:010E
+LF				  Number 000D
+MSG_DENIED			  Byte	 DGROUP:0187
+MSG_GRANTED			  Byte	 DGROUP:0178
+MSG_PROMPT			  Byte	 DGROUP:015D
+MY_GETS				  Near	 DGROUP:014A
+NOT_MATCH			  Near	 DGROUP:0143
+READ_LOOP			  Near	 DGROUP:014C
+START				  Near	 DGROUP:0100
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+DGROUP				  Group
+  _DATA				  16  0000 Word	  Public  DATA
+  _TEXT				  16  019B Word	  Public  CODE
+
